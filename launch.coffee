@@ -73,13 +73,7 @@ hasWebGL = ->
       gl = canvas.getContext("experimental-webgl")
   return gl?
 
-if not hasWebGL()
-  getWebGL = $('start')
-  getWebGL.innerHTML = 'WebGL is not supported!'
-  getWebGL.onclick = ->
-    window.location.href = 'http://get.webgl.org/'
-else
-  $('start').onclick = ->
-    $('step-1').style.display = 'none'
-    $('step-2').style.display = 'block'
-    $('step-2').style.backgroundImage = "url(css/help-#{s[0][3]}.png)"
+$('start').onclick = ->
+  $('step-1').style.display = 'none'
+  $('step-2').style.display = 'block'
+  $('step-2').style.backgroundImage = "url(css/help-#{s[0][3]}.png)"

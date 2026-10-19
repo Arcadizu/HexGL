@@ -76,13 +76,15 @@ bkcore.hexgl.HexGL = function(opts)
 		game: null
 	};
 
+	this.uiPaused = false;
+
 	this.initRenderer();
 
 	function onKeyPress(event)
 	{
 		if(event.keyCode == 27/*escape*/)
 		{
-			self.reset();
+			self.togglePause();
 		}
 	}
 
@@ -91,28 +93,44 @@ bkcore.hexgl.HexGL = function(opts)
 
 bkcore.hexgl.HexGL.prototype.start = function()
 {
-
 	this.manager.setCurrent("game");
+	this.initGameplay();
+	this.kickRenderLoop();
+}
 
+bkcore.hexgl.HexGL.prototype.kickRenderLoop = function()
+{
 	var self = this;
+	if(this._rafRunning) return;
+	this._rafRunning = true;
+	this.active = true;
 
 	function raf()
 	{
-		if(self && self.active) requestAnimationFrame( raf );
-		self.update();
+		if(!(self && self._rafRunning)) return;
+		requestAnimationFrame(raf);
+		if(self.active && !self.uiPaused)
+			self.update();
+		else if(self.uiPaused)
+			self.manager.renderCurrent();
 	}
+	raf();
+}
 
-	//if(this.a[15] == "o")
-		raf();
-
-	this.initGameplay();
+bkcore.hexgl.HexGL.prototype.stopRenderLoop = function()
+{
+	this._rafRunning = false;
+	this.active = false;
 }
 
 bkcore.hexgl.HexGL.prototype.reset = function()
 {
+	this.uiPaused = false;
+	this.active = true;
 	this.manager.get('game').objects.lowFPS = 0;
 	this.gameplay.start();
 
+	bkcore.Audio.resume();
 	bkcore.Audio.stop('bg');
 	bkcore.Audio.stop('wind');
 	bkcore.Audio.volume('wind', 0.35);
@@ -124,7 +142,92 @@ bkcore.hexgl.HexGL.prototype.restart = function()
 {
 	try{ this.document.getElementById('finish').style.display = 'none'; }
 	catch(e){};
+	this.hideFinishUI();
+	this.hidePauseUI();
 	this.reset();
+	this.kickRenderLoop();
+}
+
+bkcore.hexgl.HexGL.prototype.togglePause = function()
+{
+	if(!this.gameplay || !this.active) return;
+	if(this.gameplay.step >= 100) return;
+	if(this.isFinishUIOpen()) return;
+
+	if(this.uiPaused)
+		this.resumeGame();
+	else
+		this.pauseGame();
+}
+
+bkcore.hexgl.HexGL.prototype.pauseGame = function()
+{
+	if(!this.gameplay || !this.gameplay.pause()) return;
+	this.uiPaused = true;
+	bkcore.Audio.suspend();
+	this.showPauseUI();
+}
+
+bkcore.hexgl.HexGL.prototype.resumeGame = function()
+{
+	if(!this.gameplay) return;
+	this.gameplay.resume();
+	this.uiPaused = false;
+	bkcore.Audio.resume();
+	this.hidePauseUI();
+}
+
+bkcore.hexgl.HexGL.prototype.showPauseUI = function()
+{
+	var el = this.document.getElementById('pause-menu');
+	if(el){
+		el.classList.add('is-open');
+		el.setAttribute('aria-hidden', 'false');
+	}
+}
+
+bkcore.hexgl.HexGL.prototype.hidePauseUI = function()
+{
+	var el = this.document.getElementById('pause-menu');
+	if(el){
+		el.classList.remove('is-open');
+		el.setAttribute('aria-hidden', 'true');
+	}
+}
+
+bkcore.hexgl.HexGL.prototype.showFinishUI = function()
+{
+	var el = this.document.getElementById('finish-menu');
+	if(el){
+		el.classList.add('is-open');
+		el.setAttribute('aria-hidden', 'false');
+	}
+}
+
+bkcore.hexgl.HexGL.prototype.hideFinishUI = function()
+{
+	var el = this.document.getElementById('finish-menu');
+	if(el){
+		el.classList.remove('is-open');
+		el.setAttribute('aria-hidden', 'true');
+	}
+}
+
+bkcore.hexgl.HexGL.prototype.isFinishUIOpen = function()
+{
+	var el = this.document.getElementById('finish-menu');
+	return !!(el && el.classList.contains('is-open'));
+}
+
+bkcore.hexgl.HexGL.prototype.formatRaceTime = function(ms)
+{
+	if(ms == null || isNaN(ms)) return "—";
+	var t = bkcore.Timer.msToTimeString(ms);
+	// msToTimeString zero-fills ms to 4 chars; show 3 for classic race feel
+	var ms3 = ("" + (parseInt(t.ms, 10) % 1000)).replace(/^(\d+)$/, function(s){
+		return ("000" + (parseInt(t.ms, 10) % 1000)).slice(-3);
+	});
+	return t.m + "'" + t.s + "''" + ms3;
 }
 
 bkcore.hexgl.HexGL.prototype.update = function()
@@ -181,109 +284,66 @@ bkcore.hexgl.HexGL.prototype.initGameplay = function()
 bkcore.hexgl.HexGL.prototype.displayScore = function(f, l)
 {
 	this.active = false;
+	this.uiPaused = false;
+	this._rafRunning = false;
+	this.hidePauseUI();
+	bkcore.Audio.suspend();
 
-	var tf = bkcore.Timer.msToTimeString(f);
-	var tl = [
-		bkcore.Timer.msToTimeString(l[0]),
-		bkcore.Timer.msToTimeString(l[1]),
-		bkcore.Timer.msToTimeString(l[2])
-	];
-
-	if(this.gameover !== null)
-	{
-		this.gameover.style.display = "block";
-		this.gameover.children[0].innerHTML = tf.m + "'" + tf.s + "''" + tf.ms;
-		this.containers.main.parentElement.style.display = "none";
-		return;
-	}
-
-	var t = this.track;
-	var dc = this.document.getElementById("finish");
-	var ds = this.document.getElementById("finish-state");
-	var dh = this.document.getElementById("finish-hallmsg");
-	var dr = this.document.getElementById("finish-msg");
-	var dt = this.document.getElementById("finish-result");
-	var dl1 = this.document.getElementById("finish-lap1");
-	var dl2 = this.document.getElementById("finish-lap2");
-	var dl3 = this.document.getElementById("finish-lap3");
-	var dd = this.document.getElementById("finish-diff")
-	var st = this.document.getElementById("finish-twitter");
-	var sf = this.document.getElementById("finish-fb");
-	var sl = this.document.getElementById("lowfps-msg");
+	var trackKey = (this.track && this.track.name) ? this.track.name : 'Cityscape';
 	var d = this.difficulty == 0 ? 'casual' : 'hard';
-	var ts = this.hud.timeSeparators;
+	var finished = this.gameplay.result == this.gameplay.results.FINISH;
+	var isRecord = false;
+	var note = finished ? "Solid run — can you go faster?" : "Ship destroyed. Try again.";
 
-	if(this.gameplay.result == this.gameplay.results.FINISH)
+	if(finished && typeof Storage !== "undefined")
 	{
-		ds != undefined && (ds.innerHTML = "Finished!");
-		// local record
-		if(typeof(Storage)!=="undefined")
+		var key = 'score-' + trackKey + '-' + d;
+		if(localStorage[key] == undefined || parseFloat(localStorage[key]) > f)
 		{
-			if(localStorage['score-'+t+'-'+d] == undefined || localStorage['score-'+t+'-'+d] > f)
-			{
-				dr != undefined && (dr.innerHTML = "New local record!");
-				localStorage['score-'+t+'-'+d] = f;
-
-				// Export race data
-				localStorage['race-'+t+'-replay'] = JSON.Stringify(this.gameplay.raceData.export());
-			}
-			else
-			{
-				dr != undefined && (dr.innerHTML = "Well done!");
-			}
-		}
-		// ladder record
-		var p = bkcore.hexgl.Ladder.global[t][d][bkcore.hexgl.Ladder.global[t][d].length-2];
-		if(p != undefined && p['score'] > f)
-		{
-			dh != undefined && (dh.innerHTML = "You made it to the HOF!");
+			localStorage[key] = f;
+			isRecord = true;
+			note = "New personal best!";
+			try {
+				localStorage['race-' + trackKey + '-replay'] = JSON.stringify(this.gameplay.raceData.export());
+			} catch (e) {}
 		}
 		else
 		{
-			dh != undefined && (dh.innerHTML = "Hall Of Fame");
+			note = "Best: " + this.formatRaceTime(parseFloat(localStorage[key]));
 		}
-
-		dt != undefined && (dt.innerHTML = tf.m + ts[1] + tf.s + ts[2] + tf.ms);
-		dl1 != undefined && (dl1.innerHTML = tl[0]["m"] != undefined ? tl[0].m + ts[1] + tl[0].s + ts[2] + tl[0].ms : "-");
-		dl2 != undefined && (dl2.innerHTML = tl[1]["m"] != undefined ? tl[1].m + ts[1] + tl[1].s + ts[2] + tl[1].ms : "-");
-		dl3 != undefined && (dl3.innerHTML = tl[2]["m"] != undefined ? tl[2].m + ts[1] + tl[2].s + ts[2] + tl[2].ms : "-");
-
-		// Ladder save
-		// Undisclosed
-	}
-	else
-	{
-		ds != undefined && (ds.innerHTML = "Destroyed!");
-		dr != undefined && (dr.innerHTML = "Maybe next time!");
-		dh != undefined && (dh.innerHTML = "Hall Of Fame");
-		dt != undefined && (dt.innerHTML = "None");
-		dl1 != undefined && (dl1.innerHTML = "None");
-		dl2 != undefined && (dl2.innerHTML = "None");
-		dl3 != undefined && (dl3.innerHTML = "None");
 	}
 
-	dd != undefined && (dd.innerHTML = d);
-	st != undefined && (st.href='http://twitter.com/share?text='+encodeURIComponent('I just scored '+dt.innerHTML+' in '+'Cityscape ('+d+') on #HexGL! Come try it and beat my record on '));
-	sf != undefined && (sf.href='http://www.facebook.com/sharer.php?s=100'
-		+'&p[title]='+encodeURIComponent('I just scored '+dt.innerHTML+' in '+'Cityscape ('+d+') on HexGL!')
-		+'&p[summary]='+encodeURIComponent('HexGL is a futuristic racing game built by Thibaut Despoulain (BKcore) using HTML5, Javascript and WebGL. Come challenge your friends on this fast-paced 3D game!')
-		+'&p[url]='+encodeURIComponent('http://hexgl.bkcore.com')
-		+'&p[images][0]='+encodeURIComponent('http://hexgl.bkcore.com/image.png'));
+	var badge = this.document.getElementById('finish-badge');
+	var title = this.document.getElementById('finish-title');
+	var total = this.document.getElementById('finish-total');
+	var l1 = this.document.getElementById('finish-l1');
+	var l2 = this.document.getElementById('finish-l2');
+	var l3 = this.document.getElementById('finish-l3');
+	var noteEl = this.document.getElementById('finish-note');
 
-	bkcore.hexgl.Ladder.displayLadder('finish-ladder', t, d, 8);
+	if(badge){
+		badge.textContent = finished ? (isRecord ? "New record" : "Finished") : "Destroyed";
+		badge.classList.toggle('is-bad', !finished);
+	}
+	if(title) title.textContent = finished ? "Race complete" : "Race over";
+	if(total) total.textContent = finished ? this.formatRaceTime(f) : "—";
+	if(l1) l1.textContent = this.formatRaceTime(l && l[0]);
+	if(l2) l2.textContent = this.formatRaceTime(l && l[1]);
+	if(l3) l3.textContent = this.formatRaceTime(l && l[2]);
+	if(noteEl) noteEl.textContent = note;
 
-	if(this.manager.get('game').objects.lowFPS >= 999)
-		sl != undefined && (sl.innerHTML = 'Note: Your framerate was pretty low, you should try a lesser graphic setting!');
-	else
-		sl != undefined && (sl.innerHTML = '');
-
-	dc.style.display = 'block';
+	// keep game view visible behind the overlay
+	this.showFinishUI();
 }
 
 bkcore.hexgl.HexGL.prototype.initRenderer = function()
 {
 	var renderer = new THREE.WebGLRenderer({
 		antialias: false,
+		alpha: false,
+		stencil: false,
+		preserveDrawingBuffer: false,
+		failIfMajorPerformanceCaveat: false,
 		clearColor: 0x000000
 	});
 
@@ -300,12 +360,90 @@ bkcore.hexgl.HexGL.prototype.initRenderer = function()
 	renderer.autoClear = false;
 	renderer.sortObjects = false;
 	renderer.setSize( this.width, this.height );
-	renderer.domElement.style.position = "relative";
+	renderer.domElement.style.position = "absolute";
+	renderer.domElement.style.left = "0";
+	renderer.domElement.style.top = "0";
+	renderer.domElement.style.width = "100%";
+	renderer.domElement.style.height = "100%";
 
 	this.containers.main.appendChild( renderer.domElement );
 	this.canvas = renderer.domElement;
 	this.renderer = renderer;
 	this.manager = new bkcore.threejs.RenderManager(renderer);
+}
+
+bkcore.hexgl.HexGL.prototype.resize = function(w, h)
+{
+	w = w || window.innerWidth;
+	h = h || window.innerHeight;
+	if(w < 1 || h < 1) return;
+
+	var renderW = w;
+	var renderH = h;
+	if(this.quality === 0)
+	{
+		renderW = Math.max(1, Math.floor(w / 2));
+		renderH = Math.max(1, Math.floor(h / 2));
+	}
+
+	this.width = renderW;
+	this.height = renderH;
+
+	if(this.renderer)
+	{
+		this.renderer.setSize(renderW, renderH);
+		if(this.canvas)
+		{
+			this.canvas.style.width = "100%";
+			this.canvas.style.height = "100%";
+		}
+	}
+
+	if(this.hud && this.hud.resize)
+	{
+		this.hud.resize(renderW, renderH);
+		if(this.hud.canvas)
+		{
+			this.hud.canvas.style.width = "100%";
+			this.hud.canvas.style.height = "100%";
+		}
+	}
+
+	try {
+		var game = this.manager.get("game");
+		var sky = this.manager.get("sky");
+		if(game && game.camera && game.camera.aspect !== undefined)
+		{
+			game.camera.aspect = renderW / renderH;
+			game.camera.updateProjectionMatrix();
+		}
+		if(sky && sky.camera && sky.camera.aspect !== undefined)
+		{
+			sky.camera.aspect = renderW / renderH;
+			sky.camera.updateProjectionMatrix();
+		}
+	} catch(e) {}
+
+	if(this.composers && this.composers.game && typeof this.composers.game.reset === "function")
+	{
+		this.composers.game.reset();
+	}
+
+	if(this.extras && this.composers && this.composers.game)
+	{
+		var passes = this.composers.game.passes || [];
+		for(var i = 0; i < passes.length; i++)
+		{
+			var pass = passes[i];
+			if(pass && pass.uniforms)
+			{
+				if(pass.uniforms.size) pass.uniforms.size.value = 512.0 * (renderW / 1633);
+				if(pass.uniforms.rx) pass.uniforms.rx.value = renderW;
+				if(pass.uniforms.ry) pass.uniforms.ry.value = renderH;
+				if(pass.uniforms.resolution) pass.uniforms.resolution.value.set(1 / renderW, 1 / renderH);
+			}
+		}
+	}
 }
 
 bkcore.hexgl.HexGL.prototype.initHUD = function()
@@ -320,6 +458,14 @@ bkcore.hexgl.HexGL.prototype.initHUD = function()
 		shield: this.track.lib.get("images", "hud.shield")
 	});
 	this.containers.overlay.appendChild(this.hud.canvas);
+	if(this.hud.canvas)
+	{
+		this.hud.canvas.style.position = "absolute";
+		this.hud.canvas.style.left = "0";
+		this.hud.canvas.style.top = "0";
+		this.hud.canvas.style.width = "100%";
+		this.hud.canvas.style.height = "100%";
+	}
 }
 
 bkcore.hexgl.HexGL.prototype.initGameComposer = function()

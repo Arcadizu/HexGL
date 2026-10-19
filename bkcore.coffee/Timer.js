@@ -26,6 +26,7 @@
         delta: 0
       };
       this.active = false;
+      this._pausedAt = 0;
     }
 
     /*
@@ -41,18 +42,40 @@
       this.time.previous = now;
       this.time.elapsed = 0;
       this.time.delta = 0;
+      this._pausedAt = 0;
       return this.active = true;
     };
 
     /*
-        Pauses(true)/Unpauses(false) the timer.
+        Pauses(true)/Unpauses(false) the timer without counting wall-clock pause time.
     
         @param bool Do pause
     */
 
 
     Timer.prototype.pause = function(doPause) {
-      return this.active = !doPause;
+      var now;
+      now = (new Date).getTime();
+      if (doPause) {
+        if (!this.active) {
+          return false;
+        }
+        this.time.elapsed = now - this.time.start;
+        this._pausedAt = now;
+        this.active = false;
+        return true;
+      } else {
+        if (this.active) {
+          return false;
+        }
+        if (this._pausedAt) {
+          this.time.start += now - this._pausedAt;
+          this.time.previous = now;
+          this._pausedAt = 0;
+        }
+        this.active = true;
+        return true;
+      }
     };
 
     /*

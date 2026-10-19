@@ -1,7 +1,7 @@
 {
-	"name": "HexGL",
-	"description": "HexGL v1.0.1-ffos",
-	"launch_path": "/index-mobile.html",
+	"name": "HexGL: 3D Racing",
+	"description": "HexGL: 3D Racing — futuristic HTML5 / WebGL time-attack",
+	"launch_path": "/index.html",
 	"icons": {
 		"32": "/icon_32.png",
 		"64": "/icon_64.png",
@@ -9,10 +9,9 @@
 		"256": "/icon_256.png"
 	},
 	"developer": {
-		"name": "Thibaut Despoulain (BKcore)",
-		"url": "http://bkcore.com"
+		"name": "Portal build"
 	},
-    "installs_allowed_from": ["*"],
+	"installs_allowed_from": ["*"],
 	"default_locale": "en",
 	"orientation": ["landscape"]
 }

@@ -1,82 +1,130 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <title>HexGL by BKcore</title>
+    <title>HexGL: 3D Racing</title>
     <meta charset="utf-8">
-    <meta name="description" content="HexGL is a futuristic racing game built by Thibaut Despoulain (BKcore) using HTML5, Javascript and WebGL. Come challenge your friends on this fast-paced 3D game!">
-    <meta property="og:title" content="HexGL, the HTML5 futuristic racing game." />
-    <meta property="og:type" content="game" />
-    <meta property="og:url" content="http://hexgl.bkcore.com/" />
-    <meta property="og:image" content="http://hexgl.bkcore.com/image.png" />
-    <meta property="og:site_name" content="HexGL by BKcore" />
-    <meta property="fb:admins" content="1482017639" />
-    <link rel="icon" href="http://hexgl.bkcore.com/favicon.png" type="image/png">
-    <link rel="shortcut icon" href="http://hexgl.bkcore.com/favicon.png" type="image/png">
+    <meta name="description" content="HexGL: 3D Racing — futuristic HTML5 / WebGL time-attack racing.">
+    <meta name="application-name" content="HexGL: 3D Racing">
+    <meta name="apple-mobile-web-app-title" content="HexGL: 3D Racing">
     <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <base target="_self">
+    <link rel="icon" href="favicon.png" type="image/png">
+    <link rel="shortcut icon" href="favicon.png" type="image/png">
     <link rel="stylesheet" href="css/multi.css" type="text/css" charset="utf-8">
     <link rel="stylesheet" href="css/fonts.css" type="text/css" charset="utf-8">
+    <link rel="stylesheet" href="css/hex2026.css" type="text/css" charset="utf-8">
     <style>
-      body {
-        padding:0;
-        margin:0;
-      }
-      canvas { pointer-events:none; width: 100%;}
-      #overlay{
-        position: absolute;
-        z-index: 9999;
-        top: 0;
-        left: 0;
+      html, body {
+        margin: 0;
+        padding: 0;
         width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background-color: #000;
+      }
+      #step-1, #step-2, #step-3, #step-4, #step-5,
+      #pause-menu, #finish-menu, #credits, #leapinfo {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        box-sizing: border-box;
+      }
+      #step-4 #main,
+      #step-4 #overlay {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+      #overlay {
+        z-index: 9999;
+      }
+      #main canvas,
+      #overlay canvas {
+        display: block;
+        pointer-events: none;
+        width: 100% !important;
+        height: 100% !important;
       }
     </style>
-    <script type="text/javascript">
-    //analytics
-    var _gaq = _gaq || [];
-    _gaq.push(['_setAccount', 'UA-26274524-4']);
-    _gaq.push(['_trackPageview']);
-    (function() {
-      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
-      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
-    })();
-    </script>
   </head>
 
   <body>
     <div id="step-1">
       <div id="global"></div>
-      <div id="title">
-      </div>
+      <div id="title"></div>
       <div id="menucontainer">
-        <div id="menu">
-          <div id="start">Start</div>
-          <div id="s-controlType">Controls: Keyboard</div>
-          <div id="s-quality">Quality: High</div>
-          <div id="s-hud">HUD: On</div>
-          <div id="s-godmode" style="display: none">Godmode: Off</div>
-          <div id="s-credits">Credits</div>
+        <div class="hx-shell">
+          <div class="hx-kicker">HexGL: 3D Racing · Cityscape</div>
+          <div class="hx-best" id="best-time">Best: —</div>
+          <div id="menu">
+            <button type="button" id="start" class="hx-btn">Race</button>
+            <button type="button" id="s-controlType" class="hx-opt"><span class="label">Controls</span><span class="value">Keyboard</span></button>
+            <button type="button" id="s-quality" class="hx-opt"><span class="label">Quality</span><span class="value">High</span></button>
+            <button type="button" id="s-hud" class="hx-opt"><span class="label">HUD</span><span class="value">On</span></button>
+            <button type="button" id="s-godmode" class="hx-opt" style="display: none"><span class="label">Godmode</span><span class="value">Off</span></button>
+            <button type="button" id="s-credits" class="hx-opt">Credits</button>
+          </div>
+          <div class="hx-hint">During race: <kbd>Esc</kbd> pause · arrows / WASD steer</div>
         </div>
       </div>
     </div>
+
     <div id="step-2" style="display: none">
-      <div id="ctrl-help">Click/Touch to continue.</div>
+      <div id="ctrl-help">Click / touch to launch</div>
     </div>
+
     <div id="step-3" style="display: none">
       <div id="progressbar"></div>
     </div>
+
     <div id="step-4" style="display: none">
       <div id="overlay"></div>
       <div id="main"></div>
+      <div class="hx-race-hint" id="race-hint">Esc — Pause</div>
     </div>
+
     <div id="step-5" style="display: none">
       <div id="time"></div>
       <div id="ctrl-help">Click/Touch to continue.</div>
     </div>
+
+    <div id="pause-menu" class="hx-overlay" aria-hidden="true">
+      <div class="hx-card">
+        <h2>Paused</h2>
+        <p class="hx-sub">Cityscape · mid race</p>
+        <div class="hx-actions">
+          <button type="button" class="primary" id="pause-resume">Resume</button>
+          <button type="button" id="pause-restart">Restart race</button>
+          <button type="button" class="danger" id="pause-menu-btn">Main menu</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="finish-menu" class="hx-overlay" aria-hidden="true">
+      <div class="hx-card">
+        <div class="hx-badge" id="finish-badge">Finished</div>
+        <h2 id="finish-title">Race complete</h2>
+        <div class="hx-time" id="finish-total">0'00''000</div>
+        <div class="hx-laps">
+          <div><span class="lbl">Lap 1</span><span class="val" id="finish-l1">—</span></div>
+          <div><span class="lbl">Lap 2</span><span class="val" id="finish-l2">—</span></div>
+          <div><span class="lbl">Lap 3</span><span class="val" id="finish-l3">—</span></div>
+        </div>
+        <p class="hx-sub" id="finish-note">Nice run.</p>
+        <div class="hx-actions">
+          <button type="button" class="primary" id="finish-retry">Race again</button>
+          <button type="button" id="finish-home">Main menu</button>
+        </div>
+      </div>
+    </div>
+
     <div id="credits" style="display: none">
-      <h3>Code</h3>
-      <p><b>Concept and Development</b><br>Thibaut Despoulain (BKcore)</p>
+      <h3>Credits</h3>
+      <p><b>Original concept &amp; development</b><br>Thibaut Despoulain</p>
       <p><b>Contributors</b><br>townxelliot<br>mahesh.kk</p>
-      <p><b>Technologies</b><br>WebGL<br>JavaScript<br>CoffeeScript<br>Three.js<br>LeapMotion</p>
+      <p><b>Technologies</b><br>WebGL · JavaScript · Three.js</p>
       <h3>Graphics</h3>
       <p><b>HexMKI base model</b><br>Charnel</p>
       <p><b>Track texture</b><br>Nobiax</p>
@@ -97,13 +145,13 @@
     <script src="libs/Stats.js"></script>
     <script src="libs/DAT.GUI.min.js"></script>
 
-    <script src="bkcore.coffee/controllers/TouchController.js"></script>
-    <script src="bkcore.coffee/controllers/OrientationController.js"></script>
-    <script src="bkcore.coffee/controllers/GamepadController.js"></script>
+    <script src="bkcore/controllers/TouchController.js"></script>
+    <script src="bkcore/controllers/OrientationController.js"></script>
+    <script src="bkcore/controllers/GamepadController.js"></script>
 
-    <script src="bkcore.coffee/Timer.js"></script>
-    <script src="bkcore.coffee/ImageData.js"></script>
-    <script src="bkcore.coffee/Utils.js"></script>
+    <script src="bkcore/Timer.js"></script>
+    <script src="bkcore/ImageData.js"></script>
+    <script src="bkcore/Utils.js"></script>
 
     <script src="bkcore/threejs/RenderManager.js"></script>
     <script src="bkcore/threejs/Shaders.js"></script>
@@ -124,6 +172,5 @@
     <script src="bkcore/hexgl/HexGL.js"></script>
 
     <script src="launch.js"></script>
-
   </body>
 </html>

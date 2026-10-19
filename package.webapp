@@ -1,10 +1,9 @@
 {
-    "name": "HexGL",
-    "description": "HexGL v1.0.1-ffos",
-    "package_path" : "package.zip",
-    "version": "1",
-    "developer": {
-        "name": "Thibaut Despoulain (BKcore)",
-        "url": "http://bkcore.com"
-    }
+	"name": "HexGL: 3D Racing",
+	"description": "HexGL: 3D Racing — futuristic HTML5 / WebGL time-attack",
+	"package_path": "package.zip",
+	"version": "1",
+	"developer": {
+		"name": "Portal build"
+	}
 }

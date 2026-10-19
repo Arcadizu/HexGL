@@ -6,7 +6,7 @@
 var Detector = {
 
 	canvas: !! window.CanvasRenderingContext2D,
-	webgl: ( function () { try { return !! window.WebGLRenderingContext && !! document.createElement( 'canvas' ).getContext( 'experimental-webgl' ); } catch( e ) { return false; } } )(),
+	webgl: ( function () { try { var c = document.createElement( 'canvas' ); return !! ( window.WebGLRenderingContext && ( c.getContext( 'webgl' ) || c.getContext( 'experimental-webgl' ) ) ); } catch( e ) { return false; } } )(),
 	workers: !! window.Worker,
 	fileapi: window.File && window.FileReader && window.FileList && window.Blob,
 
@@ -27,11 +27,11 @@ var Detector = {
 		if ( ! this.webgl ) {
 
 			element.innerHTML = window.WebGLRenderingContext ? [
-				'Your graphics card does not seem to support <a href="http://khronos.org/webgl/wiki/Getting_a_WebGL_Implementation" style="color:#000">WebGL</a>.<br />',
-				'Find out how to get it <a href="http://get.webgl.org/" style="color:#000">here</a>.'
+				'Your graphics card does not seem to support WebGL.<br />',
+				'Enable hardware acceleration in your browser settings, then reload.'
 			].join( '\n' ) : [
-				'Your browser does not seem to support <a href="http://khronos.org/webgl/wiki/Getting_a_WebGL_Implementation" style="color:#000">WebGL</a>.<br/>',
-				'Find out how to get it <a href="http://get.webgl.org/" style="color:#000">here</a>.'
+				'Your browser does not seem to support WebGL.<br/>',
+				'Try a recent Chrome, Firefox, Edge, or Safari build.'
 			].join( '\n' );
 
 		}

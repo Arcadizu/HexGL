@@ -16,6 +16,7 @@ bkcore.hexgl.Gameplay = function(opts)
 	this.countDownDelay = opts.hud == null ? 1000 : 1500;
 
 	this.active = false;
+	this.paused = false;
 	this.timer = new bkcore.Timer();
 	this.modes = {
 		'timeattack':null,
@@ -145,6 +146,7 @@ bkcore.hexgl.Gameplay.prototype.start = function(opts)
 	}
 
 	this.active = true;
+	this.paused = false;
 	this.step = 0;
 	this.timer.start();
 	if(this.hud != null)
@@ -153,6 +155,27 @@ bkcore.hexgl.Gameplay.prototype.start = function(opts)
 		this.hud.display("Get ready", 1);
 		this.hud.updateLap(this.lap, this.maxLaps);
 	}
+}
+
+bkcore.hexgl.Gameplay.prototype.pause = function()
+{
+	if(!this.active || this.paused) return false;
+	// allow pause during countdown and race, not after finish trigger
+	if(this.step >= 100) return false;
+	this.paused = true;
+	this.shipControls.active = false;
+	this.timer.pause(true);
+	return true;
+}
+
+bkcore.hexgl.Gameplay.prototype.resume = function()
+{
+	if(!this.paused) return false;
+	this.paused = false;
+	this.timer.pause(false);
+	if(this.step == 4 && this.mode != "replay")
+		this.shipControls.active = true;
+	return true;
 }
 
 bkcore.hexgl.Gameplay.prototype.end = function(result)
@@ -178,7 +201,7 @@ bkcore.hexgl.Gameplay.prototype.end = function(result)
 
 bkcore.hexgl.Gameplay.prototype.update = function()
 {
-	if(!this.active) return;
+	if(!this.active || this.paused) return;
 
 	this.timer.update();
 	

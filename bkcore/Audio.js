@@ -18,6 +18,20 @@ bkcore.Audio.init = function(){
 
 bkcore.Audio.init();
 
+bkcore.Audio.suspend = function(){
+	var ctx = bkcore.Audio._ctx;
+	if(ctx && ctx.state === 'running'){
+		ctx.suspend();
+	}
+};
+
+bkcore.Audio.resume = function(){
+	var ctx = bkcore.Audio._ctx;
+	if(ctx && ctx.state === 'suspended'){
+		ctx.resume();
+	}
+};
+
 bkcore.Audio.addSound = function(src, id, loop, callback, usePanner){
 	var ctx = bkcore.Audio._ctx;
 	var audio = new Audio();
@@ -48,7 +62,12 @@ bkcore.Audio.addSound = function(src, id, loop, callback, usePanner){
 				callback();
 			}, function(e){
 				console.error('Audio decode failed!', e);
+				callback();
 			});
+		};
+		xhr.onerror = function(){
+			console.error('Audio download failed!', src);
+			callback();
 		};
 
 		xhr.open('GET', src, true);
@@ -75,6 +94,9 @@ bkcore.Audio.play = function(id){
 	var ctx = bkcore.Audio._ctx;
 
 	if(ctx){
+		if(ctx.state === 'suspended'){
+			ctx.resume();
+		}
 		var sound = ctx.createBufferSource();
 		sound.connect(bkcore.Audio.sounds[id].gainNode);
 		
@@ -126,11 +148,16 @@ bkcore.Audio.setListenerPos = function(vec){
 	if(bkcore.Audio._ctx){
 		var panner = bkcore.Audio._panner;
 		var vec2 = vec.normalize();
-		panner.setPosition(
-			vec2.x * bkcore.Audio.posMultipler,
-			vec2.y * bkcore.Audio.posMultipler,
-			vec2.z * bkcore.Audio.posMultipler
-		);
+		var x = vec2.x * bkcore.Audio.posMultipler;
+		var y = vec2.y * bkcore.Audio.posMultipler;
+		var z = vec2.z * bkcore.Audio.posMultipler;
+		if(panner.positionX){
+			panner.positionX.value = x;
+			panner.positionY.value = y;
+			panner.positionZ.value = z;
+		} else if(panner.setPosition){
+			panner.setPosition(x, y, z);
+		}
 	}
 };
 

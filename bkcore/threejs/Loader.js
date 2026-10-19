@@ -16,6 +16,24 @@ bkcore.threejs = bkcore.threejs || {};
 bkcore.NONE = undefined;
 
 /**
+ * When hosted under /play/builds/<id>/ (Arcadizu), resolve assets to the public
+ * storage URL so WebGL textures load reliably. Local serving stays relative.
+ */
+bkcore.threejs.resolveAssetUrl = function(url)
+{
+	if (!url || /^([a-z]+:)?\/\//i.test(url) || url.charAt(0) === 'data:') return url;
+	try {
+		var path = window.location.pathname || '';
+		var m = path.match(/\/play\/builds\/([^/]+)\//);
+		if (!m) return url;
+		var base = 'https://azqwgoazoezkbexiiyoe.supabase.co/storage/v1/object/public/game-builds/builds/' + m[1] + '/';
+		return base + String(url).replace(/^\.\//, '').replace(/^\//, '');
+	} catch (e) {
+		return url;
+	}
+};
+
+/**
  * Creates a new loader
  * @param {Object{onLoad, onError, onProgress}} opts Callbacks
  */
@@ -161,6 +179,7 @@ bkcore.threejs.Loader.prototype.loaded = function(type, name)
 bkcore.threejs.Loader.prototype.loadTexture = function(name, url)
 {
 	var self = this;
+	url = bkcore.threejs.resolveAssetUrl(url);
 	this.updateState("textures", name, false);
 	this.data.textures[name] = THREE.ImageUtils.loadTexture(
 		url, 
@@ -169,7 +188,8 @@ bkcore.threejs.Loader.prototype.loadTexture = function(name, url)
 			self.updateState("textures", name, true); 
 		}, 
 		function(){ 
-			self.errorCallback.call(self, name); 
+			self.errorCallback.call(self, name);
+			self.updateState("textures", name, true);
 		}
 	);
 }
@@ -177,6 +197,7 @@ bkcore.threejs.Loader.prototype.loadTexture = function(name, url)
 bkcore.threejs.Loader.prototype.loadTextureCube = function(name, url)
 {
 	var self = this;
+	url = bkcore.threejs.resolveAssetUrl(url);
 
 	var urls = [
 		url.replace("%1", "px"), url.replace("%1", "nx"),
@@ -185,32 +206,68 @@ bkcore.threejs.Loader.prototype.loadTextureCube = function(name, url)
 	];
 
 	this.updateState("texturesCube", name, false);
-	this.data.texturesCube[name] = THREE.ImageUtils.loadTextureCube( 
-		urls, 
-		new THREE.CubeRefractionMapping(), 
-		function(){ 
-			self.updateState("texturesCube", name, true); 
-		} 
-	);
+	// ImageUtils.loadTextureCube has no error path; failed faces would hang load forever.
+	var images = [];
+	images.loadCount = 0;
+	var settled = false;
+	var finish = function(ok) {
+		if (settled) return;
+		settled = true;
+		if (!ok) self.errorCallback.call(self, name);
+		self.updateState("texturesCube", name, true);
+	};
+	var texture = new THREE.Texture(images, new THREE.CubeRefractionMapping());
+	texture.flipY = false;
+	for (var i = 0; i < 6; i++) {
+		(function (index) {
+			var img = new Image();
+			images[index] = img;
+			img.onload = function () {
+				images.loadCount++;
+				if (images.loadCount === 6) {
+					texture.needsUpdate = true;
+					finish(true);
+				}
+			};
+			img.onerror = function () { finish(false); };
+			if (THREE.ImageUtils && THREE.ImageUtils.crossOrigin) {
+				img.crossOrigin = THREE.ImageUtils.crossOrigin;
+			}
+			img.src = urls[index];
+		})(i);
+	}
+	this.data.texturesCube[name] = texture;
 }
 
 bkcore.threejs.Loader.prototype.loadGeometry = function(name, url)
 {
 	var self = this;
+	url = bkcore.threejs.resolveAssetUrl(url);
 	this.data.geometries[name] = null;
 	this.updateState("geometries", name, false);
-	this.jsonLoader.load(
-		url, 
-		function(a){ 
-			self.data.geometries[name] = a;
-			self.updateState("geometries", name, true); 
-		}
-	);
+	var settled = false;
+	var finish = function(geom) {
+		if (settled) return;
+		settled = true;
+		if (geom) self.data.geometries[name] = geom;
+		else self.errorCallback.call(self, name);
+		self.updateState("geometries", name, true);
+	};
+	try {
+		this.jsonLoader.load(url, function(a){ finish(a); });
+	} catch (err) {
+		finish(null);
+	}
+	// Old JSONLoader has no onError; don't hang forever on 404/CORS.
+	setTimeout(function(){
+		if (!settled) finish(null);
+	}, 60000);
 }
 
 bkcore.threejs.Loader.prototype.loadAnalyser = function(name, url)
 {
 	var self = this;
+	url = bkcore.threejs.resolveAssetUrl(url);
 	this.updateState("analysers", name, false);
 	this.data.analysers[name] = new bkcore.ImageData(
 		url, 
@@ -223,18 +280,28 @@ bkcore.threejs.Loader.prototype.loadAnalyser = function(name, url)
 bkcore.threejs.Loader.prototype.loadImage = function(name, url)
 {
 	var self = this;
+	url = bkcore.threejs.resolveAssetUrl(url);
 	this.updateState("images", name, false);
 	var e = new Image();
-	e.onload = function() { 
-		self.updateState("images", name, true) ;
+	var done = false;
+	var finish = function(ok) {
+		if(done) return;
+		done = true;
+		if(!ok) self.errorCallback.call(self, name);
+		self.updateState("images", name, true);
 	};
-	e.crossOrigin = "anonymous";
+	e.onload = function() { finish(true); };
+	e.onerror = function() { finish(false); };
+	if (THREE.ImageUtils && THREE.ImageUtils.crossOrigin) {
+		e.crossOrigin = THREE.ImageUtils.crossOrigin;
+	}
 	e.src = url;
 	this.data.images[name] = e;
 }
 
 bkcore.threejs.Loader.prototype.loadSound = function(src, name, loop){
     var self = this;
+    src = bkcore.threejs.resolveAssetUrl(src);
     this.updateState("sounds", name, false);
     
     bkcore.Audio.addSound(

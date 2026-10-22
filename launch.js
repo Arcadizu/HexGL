@@ -173,6 +173,85 @@
     $('credits').style.display = 'none';
   });
 
+  // Sound controls: same markup rendered into every .hx-sound slot, kept in sync.
+  var SOUND_ROWS = [['master', 'Master'], ['music', 'Music'], ['sfx', 'Effects']];
+
+  function pct(v) { return Math.round(v * 100) + '%'; }
+
+  function syncSound() {
+    var st = bkcore.Audio.settings;
+    var all = document.querySelectorAll('.hx-sound');
+    for (var i = 0; i < all.length; i++) {
+      SOUND_ROWS.forEach(function (r) {
+        var input = all[i].querySelector('input[data-key="' + r[0] + '"]');
+        if (!input) return;
+        if (document.activeElement !== input) input.value = Math.round(st[r[0]] * 100);
+        all[i].querySelector('output[data-key="' + r[0] + '"]').textContent = pct(st[r[0]]);
+      });
+      var mute = all[i].querySelector('.hx-mute');
+      mute.textContent = st.muted ? 'Sound: Off' : 'Sound: On';
+      mute.classList.toggle('is-off', st.muted);
+      all[i].classList.toggle('is-muted', st.muted);
+    }
+    var label = $('s-sound-value');
+    if (label) label.textContent = st.muted ? 'Off' : pct(st.master);
+  }
+
+  function buildSound(root) {
+    var html = '';
+    SOUND_ROWS.forEach(function (r) {
+      html += '<div class="hx-slider">' +
+        '<span class="lbl">' + r[1] + '</span>' +
+        '<button type="button" class="step" data-key="' + r[0] + '" data-delta="-10" aria-label="' + r[1] + ' down">−</button>' +
+        '<input type="range" min="0" max="100" step="1" data-key="' + r[0] + '" aria-label="' + r[1] + ' volume">' +
+        '<button type="button" class="step" data-key="' + r[0] + '" data-delta="10" aria-label="' + r[1] + ' up">+</button>' +
+        '<output data-key="' + r[0] + '"></output>' +
+        '</div>';
+    });
+    html += '<button type="button" class="hx-mute"></button>';
+    root.innerHTML = html;
+
+    root.addEventListener('input', function (e) {
+      var key = e.target.getAttribute('data-key');
+      if (!key) return;
+      bkcore.Audio.set(key, e.target.value / 100);
+      if (key === 'master' && bkcore.Audio.settings.muted && e.target.value > 0) bkcore.Audio.set('muted', false);
+      syncSound();
+    });
+    root.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var t = e.target;
+      if (t.classList.contains('hx-mute')) {
+        bkcore.Audio.set('muted', !bkcore.Audio.settings.muted);
+      } else if (t.classList.contains('step')) {
+        var key = t.getAttribute('data-key');
+        var next = Math.round(bkcore.Audio.settings[key] * 100) + parseInt(t.getAttribute('data-delta'), 10);
+        bkcore.Audio.set(key, next / 100);
+        if (key === 'master' && next > 0) bkcore.Audio.set('muted', false);
+      } else {
+        return;
+      }
+      e.preventDefault();
+      syncSound();
+    });
+    // keep arrow/WASD from steering while a slider has focus
+    root.addEventListener('keydown', function (e) {
+      if (e.keyCode !== 27) e.stopPropagation();
+    });
+  }
+
+  var soundSlots = document.querySelectorAll('.hx-sound');
+  for (var si = 0; si < soundSlots.length; si++) buildSound(soundSlots[si]);
+  syncSound();
+
+  function setOverlay(id, open) {
+    $(id).classList.toggle('is-open', open);
+    $(id).setAttribute('aria-hidden', open ? 'false' : 'true');
+  }
+
+  on('s-sound', function () { syncSound(); setOverlay('sound-menu', true); });
+  on('sound-close', function () { setOverlay('sound-menu', false); });
+
   on('pause-resume', function () {
     if (window.hexGL) hexGL.resumeGame();
   });
@@ -194,6 +273,9 @@
   document.addEventListener('keydown', function (e) {
     if (e.keyCode === 27 && $('finish-menu').classList.contains('is-open')) {
       e.preventDefault();
+    }
+    if (e.keyCode === 27 && $('sound-menu').classList.contains('is-open')) {
+      setOverlay('sound-menu', false);
     }
   });
 

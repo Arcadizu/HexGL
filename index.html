@@ -23,7 +23,7 @@
         background-color: #000;
       }
       #step-1, #step-2, #step-3, #step-4, #step-5,
-      #pause-menu, #finish-menu, #credits, #leapinfo {
+      #pause-menu, #sound-menu, #finish-menu, #credits, #leapinfo {
         position: absolute;
         inset: 0;
         width: 100%;
@@ -64,9 +64,10 @@
             <button type="button" id="s-quality" class="hx-opt"><span class="label">Quality</span><span class="value">High</span></button>
             <button type="button" id="s-hud" class="hx-opt"><span class="label">HUD</span><span class="value">On</span></button>
             <button type="button" id="s-godmode" class="hx-opt" style="display: none"><span class="label">Godmode</span><span class="value">Off</span></button>
+            <button type="button" id="s-sound" class="hx-opt"><span class="label">Sound</span><span class="value" id="s-sound-value">40%</span></button>
             <button type="button" id="s-credits" class="hx-opt">Credits</button>
           </div>
-          <div class="hx-hint">During race: <kbd>Esc</kbd> pause · arrows / WASD steer</div>
+          <div class="hx-hint">During race: <kbd>Esc</kbd> pause, sound &amp; exit · arrows / WASD steer</div>
         </div>
       </div>
     </div>
@@ -82,7 +83,7 @@
     <div id="step-4" style="display: none">
       <div id="overlay"></div>
       <div id="main"></div>
-      <div class="hx-race-hint" id="race-hint">Esc — Pause</div>
+      <div class="hx-race-hint" id="race-hint">Esc — Pause · Sound · Exit</div>
     </div>
 
     <div id="step-5" style="display: none">
@@ -94,10 +95,22 @@
       <div class="hx-card">
         <h2>Paused</h2>
         <p class="hx-sub">Cityscape · mid race</p>
+        <div class="hx-sound"></div>
         <div class="hx-actions">
           <button type="button" class="primary" id="pause-resume">Resume</button>
           <button type="button" id="pause-restart">Restart race</button>
-          <button type="button" class="danger" id="pause-menu-btn">Main menu</button>
+          <button type="button" class="danger" id="pause-menu-btn">Exit to main menu</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="sound-menu" class="hx-overlay" aria-hidden="true">
+      <div class="hx-card">
+        <h2>Sound</h2>
+        <p class="hx-sub">Settings are saved on this device</p>
+        <div class="hx-sound"></div>
+        <div class="hx-actions">
+          <button type="button" class="primary" id="sound-close">Done</button>
         </div>
       </div>
     </div>
